@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Césaire Proba • La roue tourne toujours ! — Essai réel + Simulation</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+<!-- Sons -->
+<audio id="snd-stop" preload="auto">
+  <!-- petit bip (220 Hz) encodé en base64 ~0.25s -->
+  <source src="data:audio/wav;base64,UklGRqQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYBAGZmZmZmZmYAAP8AAP8AAP8AAP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wAAAAAAAP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wAAAAAAAAAAAAAAAAAAAAAAAP8A/wD/AP8A/wD/AP8A/wD/AP8A/wD/AP8A/wAAAA==" type="audio/wav">
+</audio>
+
+<!-- Remplace par ton propre fichier si tu veux un vrai applaudissement -->
+<audio id="snd-applause" preload="auto" src="./images/applause1.mp3"></audio>
+
+  <style>
+    .wheel { transition: transform 1200ms cubic-bezier(.2,.8,.2,1); will-change: transform; }
+    .pointer-triangle {
+      width: 0; height: 0;
+      border-left: 14px solid transparent;
+      border-right: 14px solid transparent;
+      border-top: 22px solid #111827; /* pointe en bas */
+    }
+    .tab-active { background: #111827; color: white; }
+    .brand-gradient { background: linear-gradient(135deg, #1e293b 0%, #0ea5e9 50%, #22c55e 100%); }
+    a.navlink { opacity:.9 } a.navlink:hover { opacity:1 }
+    .hidden-force { display: none !important; } /* utile si besoin */
+    
+    /* Petites pétales qui flottent (pour le vert) */
+.petal {
+  position: fixed; pointer-events: none; font-size: 1.8rem; opacity: 0.9;
+  animation: fall 1.8s linear forwards;
+}
+@keyframes fall {
+  0%   { transform: translateY(-10vh) rotate(0deg);   opacity: 1; }
+  100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+  <!-- Header / Marque -->
+  <header class="brand-gradient text-white">
+    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center font-bold">🎯</div>
+        <div>
+          <div class="text-xl font-extrabold tracking-wide">Césaire Proba</div>
+          <div class="text-xs opacity-90">Studio Probabilités • par et pour les élèves</div>
+        </div>
+      </div>
+      <nav class="hidden sm:flex items-center gap-4 text-sm">
+        <a href="#" data-nav="home" class="navlink">Accueil</a>
+        <a href="#" data-nav="app"  class="navlink">Le jeu</a>
+        <a href="#footer" class="navlink">À propos</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Accueil -->
+<!-- Accueil -->
+<section id="section-home" class="bg-white/70 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-6 py-10 grid lg:grid-cols-2 gap-8 items-center">
+      <div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-800 leading-tight">
+          Césaire Proba — <span class="text-sky-600">La roue tourne toujours !</span>
+        </h1>
+        <p class="mt-3 text-slate-600">
+          Bienvenue sur l’espace jeu des élèves. Ici, vous allez
+          <b>observer la stabilisation des fréquences</b> en deux étapes :
+        </p>
+        <ul class="mt-3 text-slate-600 list-disc list-inside">
+          <li><b>Essai réel</b> : faites tourner la roue pour l’animation, puis <b>enregistrez manuellement</b> la couleur observée.</li>
+          <li><b>Simulation</b> : lancez des tirages automatiques (+10, +100, +1000) et <b>comparez</b> fréquences et probabilités.</li>
+        </ul>
+        <p class="mt-3 text-slate-600">
+          Objectif : comprendre que quand on augmente le nombre d’essais,
+          les <b>fréquences observées</b> se rapprochent des <b>probabilités théoriques</b>.
+        </p>
+        <a href="#" data-nav="app"
+           class="inline-flex items-center gap-2 mt-5 px-5 py-2.5 rounded-xl bg-sky-600 text-white font-medium hover:bg-sky-700">
+          Commencer à jouer <span>→</span>
+        </a>
+      </div>
+  
+      <div class="bg-white rounded-2xl shadow border border-slate-200 p-5">
+        <div class="text-sm text-slate-600">
+          Roue à <b>16 cases</b> :
+          <span class="text-red-600">3 rouges (réduction)</span>,
+          <span class="text-sky-600">4 bleues (cadeau)</span>,
+          <span class="text-amber-600">4 jaunes (rien)</span>,
+          <span class="text-violet-600">4 violettes (rien)</span>,
+          <span class="text-emerald-600">1 verte (1 000 €)</span>.
+          <!--<br/>Probabilités théoriques : 3/16 ≈ 0,188 • 4/16 = 1/4 = 0,25 • 4/16 = 0,25 • 4/16 = 0,25 • 1/16 ≈ 0,063.-->
+        </div>
+  
+        <div class="mt-4 grid grid-cols-5 gap-3 text-center">
+          <div class="p-3 rounded-xl bg-red-50 border border-red-100">
+            <div class="text-xs text-red-600">Réduction</div>
+            <div class="text-lg font-semibold text-red-700">Rouge</div>
+          </div>
+          <div class="p-3 rounded-xl bg-sky-50 border border-sky-100">
+            <div class="text-xs text-sky-600">Cadeau</div>
+            <div class="text-lg font-semibold text-sky-700">Bleu</div>
+          </div>
+          <div class="p-3 rounded-xl bg-amber-50 border border-amber-100">
+            <div class="text-xs text-amber-600">Rien</div>
+            <div class="text-lg font-semibold text-amber-700">Jaune</div>
+          </div>
+          <div class="p-3 rounded-xl bg-violet-50 border border-violet-100">
+            <div class="text-xs text-violet-600">Rien</div>
+            <div class="text-lg font-semibold text-violet-700">Violet</div>
+          </div>
+          <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-100">
+            <div class="text-xs text-emerald-600">1 000 €</div>
+            <div class="text-lg font-semibold text-emerald-700">Vert</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- App (JEU) -->
+<!-- App (JEU) -->
+<main id="section-app" class="max-w-6xl mx-auto p-6 hidden">
+    <!-- Onglets -->
+    <div class="mt-2 mb-6 flex gap-2">
+      <button id="tab-real" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 tab-active">
+        Essai réel (animation + saisie)
+      </button>
+      <button id="tab-sim" class="px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100">
+        Simulation automatique
+      </button>
+    </div>
+  
+    <!-- ==== SECTION 1 : ESSAI RÉEL ==== -->
+    <section id="panel-real" class="grid md:grid-cols-2 gap-8 items-start">
+      <!-- Colonne gauche : roue + commandes -->
+      <section class="flex flex-col items-center bg-white border border-slate-200 rounded-xl p-6 shadow">
+        <div class="pointer-triangle mb-2"></div>
+        <div id="wheel" class="wheel rounded-full shadow-xl" style="width: 320px; height: 320px;"></div>
+  
+        <div class="mt-4 flex gap-2">
+          <button id="spinBtn"  class="px-4 py-2 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 active:scale-[.98]">Lancer la roue</button>
+          <button id="resetBtn" class="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-50">Réinitialiser</button>
+        </div>
+  
+        <!--<div class="mt-6 w-full">
+          <h2 class="text-sm font-semibold text-slate-700 mb-2">Saisir la couleur observée</h2>
+          <div class="flex flex-wrap gap-2">
+            <button data-color="Rouge"  class="px-3 py-2 rounded-lg text-white font-medium" style="background:#ef4444">Ajouter Rouge</button>
+            <button data-color="Bleu"   class="px-3 py-2 rounded-lg text-white font-medium" style="background:#3b82f6">Ajouter Bleu</button>
+            <button data-color="Jaune"  class="px-3 py-2 rounded-lg text-white font-medium" style="background:#f59e0b">Ajouter Jaune</button>
+            <button data-color="Violet" class="px-3 py-2 rounded-lg text-white font-medium" style="background:#8b5cf6">Ajouter Violet</button>
+            <button data-color="Vert"   class="px-3 py-2 rounded-lg text-white font-medium" style="background:#22c55e">Ajouter Vert</button>
+  
+            <button id="undoBtn" class="ml-auto px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">
+              Annuler le dernier
+            </button>
+          </div>
+        </div>-->
+  
+        <div id="lastInfo" class="mt-3 text-sm text-slate-600 min-h-[1.25rem]"></div>
+      </section>
+  
+      <!-- Colonne droite : tableau -->
+      <section class="bg-white border border-slate-200 rounded-xl p-6 shadow">
+        <div class="flex items-center gap-3 mb-3">
+          <h2 class="text-lg font-semibold">Résultats (essai réel)</h2>
+          <!--<span class="text-xs text-slate-500">
+            Théorique : Rouge 3/16 ≈ 0,188 · Bleu 4/16 = 0,25 · Jaune 4/16 = 0,25 · Violet 4/16 = 0,25 · Vert 1/16 ≈ 0,063
+          </span>-->
+        </div>
+  
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead>
+              <tr class="text-left text-slate-600">
+                <th class="py-2 pr-4">Couleur</th>
+                <th class="py-2 pr-4">Effectif</th>
+                <th class="py-2 pr-4">Fréquence (à calculer)</th>
+              </tr>
+            </thead>
+            <tbody id="statsBody-real">
+              <tr>
+                <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                  <span class="w-3 h-3 inline-block rounded-sm" style="background:#ef4444"></span>Rouge
+                </span></td>
+                <td class="py-2 pr-4" id="cnt-rouge">0</td>
+                <td class="py-2 pr-4" id="freq-roug">—</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                  <span class="w-3 h-3 inline-block rounded-sm" style="background:#3b82f6"></span>Bleu
+                </span></td>
+                <td class="py-2 pr-4" id="cnt-bleu">0</td>
+                <td class="py-2 pr-4" id="freq-ble">—</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                  <span class="w-3 h-3 inline-block rounded-sm" style="background:#f59e0b"></span>Jaune
+                </span></td>
+                <td class="py-2 pr-4" id="cnt-jaune">0</td>
+                <td class="py-2 pr-4" id="freq-jaun">—</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                  <span class="w-3 h-3 inline-block rounded-sm" style="background:#8b5cf6"></span>Violet
+                </span></td>
+                <td class="py-2 pr-4" id="cnt-violet">0</td>
+                <td class="py-2 pr-4" id="freq-viole">—</td>
+              </tr>
+              <tr>
+                <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                  <span class="w-3 h-3 inline-block rounded-sm" style="background:#22c55e"></span>Vert
+                </span></td>
+                <td class="py-2 pr-4" id="cnt-vert">0</td>
+                <td class="py-2 pr-4" id="freq-ver">—</td>
+              </tr>
+  
+              <tr class="border-t border-slate-200">
+                <td class="py-2 pr-4 font-medium">Total tirages</td>
+                <td class="py-2 pr-4" id="cnt-total">0</td>
+                <td class="py-2 pr-4 text-slate-500">—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  
+    <!-- ==== SECTION 2 : SIMULATION AUTOMATIQUE ==== -->
+    <section id="panel-sim" class="hidden">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <section class="bg-white border border-slate-200 rounded-xl p-6 shadow">
+          <h2 class="text-lg font-semibold mb-3">Simulation automatique</h2>
+          <p class="text-sm text-slate-600 mb-3">
+            Ajoute des tirages aléatoires selon la roue (3 rouges, 4 bleues, 4 jaunes, 4 violettes, 1 verte).
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button data-n="1"    class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+1</button>
+            <button data-n="10"   class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+10</button>
+            <button data-n="50"   class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+50</button>
+            <button data-n="100"  class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+100</button>
+            <button data-n="500"  class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+500</button>
+            <button data-n="1000" class="px-3 py-1 rounded-lg bg-indigo-600 text-white">+1000</button>
+            <button id="simResetBtn" class="ml-auto px-3 py-1 rounded-lg border border-slate-300 hover:bg-slate-50">Réinitialiser</button>
+          </div>
+        </section>
+  
+        <section class="bg-white border border-slate-200 rounded-xl p-6 shadow">
+          <h2 class="text-lg font-semibold mb-3">Résultats (simulation)</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-600">
+                  <th class="py-2 pr-4">Catégorie</th>
+                  <th class="py-2 pr-4">Effectif</th>
+                  <th class="py-2 pr-4">Fréquence</th>
+                  <th class="py-2">Probabilité</th>
+                </tr>
+              </thead>
+              <tbody id="statsBody-sim">
+                <tr>
+                  <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                    <span class="w-3 h-3 inline-block rounded-sm" style="background:#ef4444"></span>Rouge
+                  </span></td>
+                  <td class="py-2 pr-4" id="sim-rouge">0</td>
+                  <td class="py-2 pr-4" id="simf-rouge">0.000</td>
+                  <td class="py-2">3/16 ≈ 0.188</td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                    <span class="w-3 h-3 inline-block rounded-sm" style="background:#3b82f6"></span>Bleu
+                  </span></td>
+                  <td class="py-2 pr-4" id="sim-bleu">0</td>
+                  <td class="py-2 pr-4" id="simf-bleu">0.000</td>
+                  <td class="py-2">4/16 = 0.25</td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                    <span class="w-3 h-3 inline-block rounded-sm" style="background:#f59e0b"></span>Jaune
+                  </span></td>
+                  <td class="py-2 pr-4" id="sim-jaune">0</td>
+                  <td class="py-2 pr-4" id="simf-jaune">0.000</td>
+                  <td class="py-2">4/16 = 0.25</td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                    <span class="w-3 h-3 inline-block rounded-sm" style="background:#8b5cf6"></span>Violet
+                  </span></td>
+                  <td class="py-2 pr-4" id="sim-violet">0</td>
+                  <td class="py-2 pr-4" id="simf-violet">0.000</td>
+                  <td class="py-2">4/16 = 0.25</td>
+                </tr>
+                <tr>
+                  <td class="py-2 pr-4"><span class="inline-flex items-center gap-2">
+                    <span class="w-3 h-3 inline-block rounded-sm" style="background:#22c55e"></span>Vert
+                  </span></td>
+                  <td class="py-2 pr-4" id="sim-vert">0</td>
+                  <td class="py-2 pr-4" id="simf-vert">0.000</td>
+                  <td class="py-2">1/16 ≈ 0.063</td>
+                </tr>
+                <tr class="border-t border-slate-200">
+                  <td class="py-2 pr-4 font-medium">Total tirages</td>
+                  <td class="py-2 pr-4" id="sim-total">0</td>
+                  <td class="py-2 pr-4 text-slate-500">—</td>
+                  <td class="py-2 text-slate-500">1.000</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-3 text-xs text-slate-500">Observe la stabilisation des fréquences quand le nombre de tirages augmente.</p>
+        </section>
+      </div>
+    </section>
+  </main>
+  
+
+  <!-- Footer -->
+  <footer id="footer" class="mt-10 border-t border-slate-200">
+    <div class="max-w-6xl mx-auto px-6 py-6 text-sm text-slate-600 grid sm:grid-cols-3 gap-4">
+      <div>
+        <div class="font-semibold text-slate-700">Césaire Proba</div>
+        <p class="mt-1">Un mini-site par et pour les élèves pour explorer les probabilités.</p>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-700">Objectif du site</div>
+        <p class="mt-1">Observer la stabilisation des fréquences, notamment à l’aide d’une simulation informatique fournie.</p>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-700">Crédits</div>
+        <p class="mt-1">Roue 16 cases : 3 rouges, 4 bleues, 4 jaunes, 4 violets, 1 verte <br>
+            © 2025 Césaire Proba.</p>
+      </div>
+    </div>
+  </footer>
+<!--
+  import random
+import matplotlib.pyplot as plt
+
+# Paramètres : 11 cases -> 3 rouges, 4 bleues, 4 jaunes
+POPULATION = ["Rouge"]*3 + ["Bleu"]*4 + ["Jaune"]*4
+N = 10000 # nombre de tirages
+
+# Probabilités théoriques
+p_theo = {"Rouge": 3/11, "Bleu": 4/11, "Jaune": 4/11}
+
+counts = {"Rouge": 0, "Bleu": 0, "Jaune": 0}
+hist = {"Rouge": [], "Bleu": [], "Jaune": []}
+
+for t in range(1, N+1):
+  x = random.choice(POPULATION)
+  counts[x] += 1
+  for c in hist:
+    hist[c].append(counts[c]/t)
+
+print("Effectifs finaux : ", counts)
+print("Fréquences finales : ",
+      {c: round(hist[c][-1], 3) for c in hist})
+print("Théoriques : ", {c: round(p,3) for c,p in p_theo.items()})
+
+plt.figure(figsize=(8,5))
+plt.plot(hist["Rouge"], label="Rouge")
+plt.plot(hist["Bleu"],  label="Bleu")
+plt.plot(hist["Jaune"], label="Jaune")
+plt.axhline(p_theo["Rouge"], linestyle="--")
+plt.axhline(p_theo["Bleu"],  linestyle="--")
+plt.axhline(p_theo["Jaune"], linestyle="--")
+plt.xlabel("Nombre de tirages (cumulés)")
+plt.ylabel("Fréquence observée")
+plt.title("Stabilisation des fréquences – Roue (3R/4B/4J)")
+plt.legend()
+plt.tight_layout()
+plt.show()
+-->
+<script>
+    // ====== Navigation Accueil <-> App ======
+    const homeSection = document.getElementById('section-home');
+    const appSection  = document.getElementById('section-app');
+    function showHome(){ homeSection.classList.remove('hidden'); appSection.classList.add('hidden'); window.location.hash=''; window.scrollTo({top:0,behavior:'smooth'}); }
+    function showApp(){ homeSection.classList.add('hidden'); appSection.classList.remove('hidden'); document.getElementById('section-app').scrollIntoView({behavior:'smooth',block:'start'}); }
+    document.querySelectorAll('[data-nav="home"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showHome();}));
+    document.querySelectorAll('[data-nav="app"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showApp();}));
+    if (window.location.hash==='#app') showApp();
+  
+    // ====== Onglets ======
+    const tabRealBtn=document.getElementById('tab-real');
+    const tabSimBtn =document.getElementById('tab-sim');
+    const panelReal =document.getElementById('panel-real');
+    const panelSim  =document.getElementById('panel-sim');
+    function activateTab(which){
+      const real=(which==='real');
+      panelReal.classList.toggle('hidden',!real);
+      panelSim .classList.toggle('hidden', real);
+      tabRealBtn.classList.toggle('tab-active', real);
+      tabSimBtn .classList.toggle('tab-active',!real);
+      document.getElementById('section-app').scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    tabRealBtn.addEventListener('click',()=>activateTab('real'));
+    tabSimBtn .addEventListener('click',()=>activateTab('sim'));
+    activateTab('real');
+  
+    // ====== Données roue 16 cases ======
+    const SEGMENTS = [
+      { label: "Rouge",  color: "#ef4444" },
+      { label: "Bleu",   color: "#3b82f6" },
+      { label: "Jaune",  color: "#f59e0b" },
+      { label: "Violet", color: "#8b5cf6" },
+      { label: "Rouge",  color: "#ef4444" },
+      { label: "Bleu",   color: "#3b82f6" },
+      { label: "Jaune",  color: "#f59e0b" },
+      { label: "Violet", color: "#8b5cf6" },
+      { label: "Rouge",  color: "#ef4444" },
+      { label: "Bleu",   color: "#3b82f6" },
+      { label: "Jaune",  color: "#f59e0b" },
+      { label: "Violet", color: "#8b5cf6" },
+      { label: "Bleu",   color: "#3b82f6" },
+      { label: "Jaune",  color: "#f59e0b" },
+      { label: "Violet", color: "#8b5cf6" },
+      { label: "Vert",   color: "#22c55e" } // 1 case (1000 €)
+    ];
+    const N = SEGMENTS.length;            // 16
+    const SLICE = 360 / N;                // 22.5°
+    const R_OUT = 150;                    // rayon externe SVG
+    const R_IN  = 0;                      // plein (sinon mettre >0 pour donut)
+    const CX = 160, CY = 160;             // centre SVG (taille 320x320)
+  
+    // ====== Essai réel (auto) ======
+    const wheelHost = document.getElementById('wheel');   // <div id="wheel" ...>
+    const spinBtn   = document.getElementById('spinBtn');
+    const resetBtn  = document.getElementById('resetBtn');
+    const undoBtn   = document.getElementById('undoBtn');
+    const resultEl  = document.getElementById('lastInfo');
+  
+    // construit l'SVG (une fois)
+    function polar(cx,cy,r,deg){ const rad=deg*Math.PI/180; return {x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad)}; }
+    function sectorPath(i){
+      // 0° = droite; on veut le 0° en haut => on décale tous les angles de -90°
+      const a0 = -90 + i*SLICE;
+      const a1 = a0 + SLICE;
+      const p0 = polar(CX,CY,R_OUT,a0);
+      const p1 = polar(CX,CY,R_OUT,a1);
+      const laf = SLICE > 180 ? 1 : 0;
+      if (R_IN<=0){
+        return `M ${CX} ${CY} L ${p0.x} ${p0.y} A ${R_OUT} ${R_OUT} 0 ${laf} 1 ${p1.x} ${p1.y} Z`;
+      } else {
+        const q1 = polar(CX,CY,R_IN ,a1);
+        const q0 = polar(CX,CY,R_IN ,a0);
+        return `M ${q0.x} ${q0.y} A ${R_IN} ${R_IN} 0 ${laf} 0 ${q1.x} ${q1.y} L ${p1.x} ${p1.y} A ${R_OUT} ${R_OUT} 0 ${laf} 1 ${p0.x} ${p0.y} Z`;
+      }
+    }
+    function buildWheelSVG(){
+      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('viewBox','0 0 320 320');
+      svg.setAttribute('width','320'); svg.setAttribute('height','320');
+      const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('id','wheelSectors');
+      g.style.transformBox = 'fill-box';
+      g.style.transformOrigin = '50% 50%';
+      g.style.transition = 'transform 1200ms cubic-bezier(.2,.8,.2,1)';
+  
+      // secteurs
+      for(let i=0;i<N;i++){
+        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+        path.setAttribute('d', sectorPath(i));
+        path.setAttribute('fill', SEGMENTS[i].color);
+        g.appendChild(path);
+      }
+      // contour
+      const ring = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      ring.setAttribute('cx',CX); ring.setAttribute('cy',CY); ring.setAttribute('r',R_OUT);
+      ring.setAttribute('fill','none'); ring.setAttribute('stroke','#ffffff'); ring.setAttribute('stroke-width','10');
+  
+      svg.appendChild(g);
+      svg.appendChild(ring);
+      wheelHost.innerHTML = ''; // purge
+      wheelHost.appendChild(svg);
+    }
+    buildWheelSVG();
+    const sectorsEl = document.getElementById('wheelSectors');
+  
+    // compteurs
+    let counts = { Rouge:0, Bleu:0, Jaune:0, Violet:0, Vert:0 };
+    let total  = 0;
+    const hist = [];
+  
+    // rotation cumulée (CSS)
+    let spinAccum = 0;
+    let spinning  = false;
+    const SPIN_TURNS = 8;
+  
+    function normalize(deg){ deg = deg%360; if(deg<0) deg+=360; return deg; }
+    function fr3(v){ return total ? (v/total).toFixed(3) : '0.000'; }
+    function updateTableReal(){
+      const cids={Rouge:'cnt-rouge',Bleu:'cnt-bleu',Jaune:'cnt-jaune',Violet:'cnt-violet',Vert:'cnt-vert'};
+      const fids={Rouge:'freq-rouge',Bleu:'freq-bleu',Jaune:'freq-jaune',Violet:'freq-violet',Vert:'freq-vert'};
+      for(const k of Object.keys(counts)){
+        const c=document.getElementById(cids[k]); if(c) c.textContent=counts[k];
+        const f=document.getElementById(fids[k]); if(f) f.textContent=fr3(counts[k]);
+      }
+      const tot=document.getElementById('cnt-total'); if(tot) tot.textContent=total;
+    }
+    updateTableReal();
+  
+    // centre du secteur i (réf 0° = haut, car on a déjà décalé de -90° dans le dessin)
+    // avant
+// function centerAngle(i){ return i*SLICE; }
+
+// après (vise le CENTRE du secteur i)
+function centerAngle(i){
+  const BIAS = 0.25;        // petit décalage anti-alias (en degrés) pour éviter pile la frontière
+  return (i + 0.5) * SLICE + BIAS;
+}
+
+    // rotation finale pour amener le centre du secteur choisi pile sous la flèche (haut)
+    function rotationToIndex(i,current){
+      const desiredMod = normalize(-centerAngle(i));   // opposé pour amener sous la flèche
+      const curMod     = normalize(current);
+      let delta = desiredMod - curMod;
+      if (delta < 0) delta += 360;
+      return current + SPIN_TURNS*360 + delta;
+    }
+  
+    function pickIndex(){ return Math.floor(Math.random()*N); }
+  
+    function spinOnce(){
+  if (spinning) return;
+  spinning = true;
+
+  const idx   = pickIndex();
+  const label = SEGMENTS[idx].label;
+  const target = rotationToIndex(idx, spinAccum);
+
+  // anime le groupe SVG
+  sectorsEl.getBoundingClientRect(); // reflow
+  sectorsEl.style.transform = `rotate(${target}deg)`;
+
+  sectorsEl.addEventListener('transitionend', () => {
+    spinAccum = target;
+    counts[label] = (counts[label]||0) + 1;
+    total += 1;
+    hist.push(label);
+    updateTableReal();
+
+    // ✅ ici l’affichage coloré
+    const seg = SEGMENTS.find(s => s.label === label);
+    resultEl.innerHTML = `
+      Résultat :
+      <span class="px-3 py-1 rounded-lg text-white font-semibold" style="background:${seg.color}">
+        ${label}
+      </span>
+    `;
+       // 🔊 Effets sonores et visuels
+  if (label === 'Vert') {
+    play('snd-applause');   // ton applause.mp3 (si présent)
+    launchConfetti();       // confettis verts / or
+    rainEmojis('🌸', 26);   // pétales
+  } else {
+    play('snd-stop');       // petit bip discret
+  }
+    spinning = false;
+  }, { once:true });
+}
+function play(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.currentTime = 0;
+  el.play().catch(()=>{ /* silencieux si bloqué par le navigateur */ });
+}
+
+// Confettis centrés, verts/or -> pour le “Vert”
+function launchConfetti() {
+  const duration = 1800;
+  const end = Date.now() + duration;
+  (function frame() {
+    // deux jets symétriques
+    confetti({ particleCount: 12, spread: 55, startVelocity: 38, origin: { x: 0.2, y: 0.2 }, colors: ['#22c55e','#fbbf24','#10b981'] });
+    confetti({ particleCount: 12, spread: 55, startVelocity: 38, origin: { x: 0.8, y: 0.2 }, colors: ['#22c55e','#fbbf24','#10b981'] });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+// Pluie rapide d’emojis (pétales “bravo”)
+function rainEmojis(emoji='🌸', count=24) {
+  const w = window.innerWidth;
+  for (let i=0;i<count;i++) {
+    const span = document.createElement('span');
+    span.className = 'petal';
+    span.textContent = emoji;
+    span.style.left = Math.random() * w + 'px';
+    document.body.appendChild(span);
+    setTimeout(()=>span.remove(), 2000);
+  }
+}
+
+    document.getElementById('spinBtn').addEventListener('click', spinOnce);
+  
+    document.getElementById('undoBtn')?.addEventListener('click', () => {
+      if (!hist.length || spinning) return;
+      const last = hist.pop();
+      counts[last] = Math.max(0, counts[last]-1);
+      total = Math.max(0, total-1);
+      updateTableReal();
+      resultEl.textContent = `Annulé : ${last}`;
+    });
+  
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (spinning) return;
+      counts = { Rouge:0, Bleu:0, Jaune:0, Violet:0, Vert:0 };
+      total = 0; hist.length = 0;
+      updateTableReal(); resultEl.textContent = '';
+      const old = sectorsEl.style.transition;
+      sectorsEl.style.transition = 'none';
+      sectorsEl.style.transform  = 'rotate(0deg)';
+      sectorsEl.getBoundingClientRect();
+      sectorsEl.style.transition = old || 'transform 1200ms cubic-bezier(.2,.8,.2,1)';
+      spinAccum = 0;
+    });
+  
+    // ====== Simulation (inchangé) ======
+    const POPULATION = [
+      ...Array(3).fill('Rouge'),
+      ...Array(4).fill('Bleu'),
+      ...Array(4).fill('Jaune'),
+      ...Array(4).fill('Violet'),
+      'Vert'
+    ];
+    const simButtons = document.querySelectorAll('#panel-sim button[data-n]');
+    const simResetBtn= document.getElementById('simResetBtn');
+    let simCounts = { Rouge:0, Bleu:0, Jaune:0, Violet:0, Vert:0 };
+    let simTotal  = 0;
+    function simDrawOnce(){ const i=Math.floor(Math.random()*POPULATION.length); const c=POPULATION[i]; simCounts[c]+=1; simTotal+=1; }
+    function simDrawMany(n){ for(let k=0;k<n;k++) simDrawOnce(); updateSimView(); }
+    function fr(v,t){ return t ? (v/t).toFixed(3) : '0.000'; }
+    function updateSimView(){
+      const cids={Rouge:'sim-rouge',Bleu:'sim-bleu',Jaune:'sim-jaune',Violet:'sim-violet',Vert:'sim-vert'};
+      const fids={Rouge:'simf-rouge',Bleu:'simf-bleu',Jaune:'simf-jaune',Violet:'simf-violet',Vert:'simf-vert'};
+      for(const k of Object.keys(simCounts)){
+        const c=document.getElementById(cids[k]); if(c) c.textContent=simCounts[k];
+        const f=document.getElementById(fids[k]); if(f) f.textContent=fr(simCounts[k],simTotal);
+      }
+      const tot=document.getElementById('sim-total'); if(tot) tot.textContent=simTotal;
+    }
+    updateSimView();
+    simButtons.forEach(btn=>btn.addEventListener('click',()=>{ const n=parseInt(btn.getAttribute('data-n'),10); simDrawMany(n); }));
+    simResetBtn.addEventListener('click',()=>{ simCounts={Rouge:0,Bleu:0,Jaune:0,Violet:0,Vert:0}; simTotal=0; updateSimView(); });
+  </script>
+  
+  
+</body>
+</html>
